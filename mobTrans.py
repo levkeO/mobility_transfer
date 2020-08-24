@@ -1,6 +1,6 @@
 """
 Calculate the mobility transfer function 
-run as python3 mobTrans.py [path] [file name] [number of frames]
+run as python3 mobTrans.py [path] [file name] [number of frames] [0: all particles or A or B]
 """
 import numpy as np
 import pylab as pl
@@ -15,8 +15,8 @@ rho = 1.4                       # number density for periodic boundaries
 numFrames = int(sys.argv[3])	# number of frames
 path = sys.argv[1]		# path to input file
 filexyz = sys.argv[2] 		# coordinate file 
-partType = 'A'		# type of particles to compute: 0: all particles, 'A': type A particle: 'B': type B particles
-if partType == 0:
+partType = sys.argv[4]	# type of particles to compute: 0: all particles, 'A': type A particle: 'B': type B particles
+if partType == '0':
 	numPart = 10002
 	partLabel = ['A','B'] # for loading coordinates of A and B particles
 elif partType =='A': 
