@@ -120,6 +120,7 @@ for delta in [200,400]:
 	pl.hist(minDistsFast,bins = 20,density = True,histtype = 'step', color = 'red',label = 'fast')	#plot distribution of minimum distance
 	pl.hist(minDistsRand,bins = 20,density= True,histtype = 'step', color = 'blue', label  = 'rand')
 	pl.legend(frameon=False)
+	pl.title('delta= '+str(delta))
 	print('Fast particles with previous fast neighbours: %.2f percent'%(len(minDistsFast[minDistsFast<cutoff])/len(minDistsFast)))		#compute ratio of close particles
 	print('Fast particles with previous selection of random neighbours: %.2f percent'%(len(minDistsRand[minDistsRand<cutoff])/len(minDistsRand)))		#compute ratio of close particles
 pl.show()
