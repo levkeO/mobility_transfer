@@ -1,6 +1,6 @@
 """
 Calculate the mobility transfer function 
-run as python3 mobTrans_v2.py [path] [file name] [number of frames] [number of particles]
+run as python3 mobTrans.py [path] [file name] [number of frames]
 """
 import numpy as np
 import pylab as pl
@@ -13,12 +13,20 @@ import singPartDist as nf
 cutoff = 1.3 			# cutoff for particles being 'close' to each other (~ first min of g(r))
 rho = 1.4                       # number density for periodic boundaries
 numFrames = int(sys.argv[3])	# number of frames
-numPart = 10002			# number of particles
-numFast = int(numPart*0.1)	# number of particles that are considered 'fast'
 path = sys.argv[1]		# path to input file
 filexyz = sys.argv[2] 		# coordinate file 
+partType = 'A'		# type of particles to compute: 0: all particles, 'A': type A particle: 'B': type B particles
+if partType == 0:
+	numPart = 10002
+	partLabel = ['A','B'] # for loading coordinates of A and B particles
+elif partType =='A': 
+	numPart = 6668
+	partLabel = ['A','A']
+else: 
+	numPart = 3334
+	partLabel = ['B','B']
 side  = (numPart / rho)**(1/3)	# lenght of box
-numA =3334			# number of A particles to compute particle types separately
+numFast = int(numPart*0.1)	# number of particles that are considered 'fast'
 
 
 def readCoords(filexyz, numFrames, numPart):
@@ -45,34 +53,26 @@ def readCoords(filexyz, numFrames, numPart):
                                 if frame == numFrames:
                                         break
                                 particleCounter = 0
-                        elif (not splitL[0] == 'Atoms.') and (splitL[0] == 'B' or splitL[0] == 'B'):
+                        elif (not splitL[0] == 'Atoms.') and (splitL[0] == partLabel[0] or splitL[0] == partLabel[1]):
                                 allCoords[frame][particleCounter,0] =splitL[1]
                                 allCoords[frame][particleCounter,1] =splitL[2]
                                 allCoords[frame][particleCounter,2] =splitL[3]
                                 particleCounter+=1
-        print(particleCounter)
         return allCoords
-allCoords = readCoords(path+filexyz,numFrames,numA)
-print(allCoords.shape)
+allCoords = readCoords(path+filexyz,numFrames,numPart)
 
 def selectRand(allCoords,delta,numFast,numFrames,fastPart):
 	"""
 	Randomly reassignes particle types in the same ratio as before (for chosen particle type)
-	SOMETHIng is wrong there should be an evaluattion by frame!
 	"""
 	randFast = []
 	fastPart = np.array(fastPart)
 	for i,frame in enumerate(range(delta,numFrames,delta)):
 		Ids = np.array(range(numPart))
 		Ids = Ids[np.in1d(Ids,fastPart[i,:])==False]	
-		#print(Ids.shape, Ids.max())
-		#print(Ids)
 		randType = np.random.random_sample(size=len(Ids))#numPart-fastPart.shape[1])
-		#print(len(randType),'len rand')
-		#print(randType.shape)
 		randType= (randType<(numFast/(numPart-numFast))).astype(int)
 		randFast.append(Ids[np.where(randType == 1)[0]])
-		#print(np.array(randFast[i]))
 	return randFast
 
 def minDistPart(allCoords,ID,IDlist,frame,L):
@@ -92,10 +92,7 @@ def selectFast(allCoords,delta,numFast,numFrames,side):
 		split trajectory into bits of length delta and identify the numFast fastest particles 
 	"""
 	fastPart = []
-	print('numFrames',numFrames)
 	for frame in range(delta,numFrames,delta):
-		if frame%100 ==0:
-			print(frame)
 		dist =np.array([nf.squareDist(allCoords[:,particle,:],frame-delta,frame,side) for particle in range(numPart)])
 		fastPart.append(dist.argsort()[-numFast:])
 	return fastPart
@@ -106,31 +103,23 @@ def distFast(fastPart,refPart,allCoords,delta):
 	Calculate the distance between minimum distance between sets of particles
 	"""
 	minDists = []
-	print(np.array(refPart).shape)
 	for frame in range(1,len(fastPart)):
-		counter =  0
 		for partID in fastPart[frame]: #do I compare with the correct sample for random???
 			if (not  partID in fastPart[frame-1]) and (not partID in refPart[frame-1]):
 				distMin = minDistPart(allCoords,partID,refPart[frame-1],frame*delta,side)
 				minDists.append(distMin)
-				counter+=1
-		#print(counter)		
 	return minDists
 	
-numPart = numA
-numFast = int(numA*0.1)
-for delta in [200]:
+for delta in [200,400]:
 	pl.figure()
+	print('length of trajcectory section delta is %.3d frames'%(delta))
 	fastPart = selectFast(allCoords,delta,numFast,numFrames,side)	# select all fast particles for all frames
 	randPart = selectRand(allCoords,delta,numFast,numFrames,fastPart)	# randomly select particles that are not fast for each frame
 	minDistsFast = np.array(distFast(fastPart,fastPart, allCoords,delta))
 	minDistsRand = np.array(distFast(fastPart,randPart, allCoords,delta))	# Calculate distance between particles in different frames
-	pl.hist(minDistsFast,bins = 20,normed = True,histtype = 'step', color = 'red',label = 'fast')	#plot distribution of minimum distance
-	pl.hist(minDistsRand,bins = 20,normed= True,histtype = 'step', color = 'blue', label  = 'rand')
-	pl.title('delta= '+str(delta))
+	pl.hist(minDistsFast,bins = 20,density = True,histtype = 'step', color = 'red',label = 'fast')	#plot distribution of minimum distance
+	pl.hist(minDistsRand,bins = 20,density= True,histtype = 'step', color = 'blue', label  = 'rand')
 	pl.legend(frameon=False)
-	print(np.array(minDistsFast).mean())
-	print(np.array(minDistsRand).mean())
-	print('delta:',delta,'fast: ',len(minDistsFast[minDistsFast<cutoff])/len(minDistsFast))		#compute ratio of close particles
-	print('delta',delta,'random: ',len(minDistsRand[minDistsRand<cutoff])/len(minDistsRand))
+	print('Fast particles with previous fast neighbours: %.2f percent'%(len(minDistsFast[minDistsFast<cutoff])/len(minDistsFast)))		#compute ratio of close particles
+	print('Fast particles with previous selection of random neighbours: %.2f percent'%(len(minDistsRand[minDistsRand<cutoff])/len(minDistsRand)))		#compute ratio of close particles
 pl.show()
