@@ -39,18 +39,29 @@ def readCoords(filexyz, numFrames, numPart,partLabel):
                                 particleCounter+=1
         return allCoords
 
-def selectRand(allCoords,delta,numFast,numFrames,fastPart,numPart):
+def selectRand(allCoords,delta,numFast,numFrames,fastPart,numPart, francesco=False):
 	"""
 	Randomly reassignes particle types in the same ratio as before (for chosen particle type)
 	"""
+
 	randFast = []
 	fastPart = np.array(fastPart)
-	for i,frame in enumerate(range(delta,numFrames,delta)):
-		Ids = np.array(range(numPart))
-		Ids = Ids[np.in1d(Ids,fastPart[i,:])==False]	
-		randType = np.random.random_sample(size=len(Ids))#numPart-fastPart.shape[1])
-		randType= (randType<(numFast/(numPart-numFast))).astype(int)
-		randFast.append(Ids[np.where(randType == 1)[0]])
+	Ids = np.array(range(numPart))
+
+	if francesco:
+	# FT: a simpler implementation
+		for i,frame in enumerate(range(delta,numFrames,delta)):
+			randFast.append(np.random.choice(Ids, size=fastPart[i,:].shape[0]))
+
+	else:
+		for i,frame in enumerate(range(delta,numFrames,delta)):
+			Ids = Ids[np.in1d(Ids,fastPart[i,:])==False]	
+			randType = np.random.random_sample(size=len(Ids))#numPart-fastPart.shape[1])
+			randType= (randType<(numFast/(numPart-numFast))).astype(int)
+			randFast.append(Ids[np.where(randType == 1)[0]])
+
+
+
 	return randFast
 
 def minDistPart(allCoords,ID,IDlist,frame,L):
